@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#07111f" />
+  <title>EV Charger Finder</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIINfQ3ynhQJ/55sLNfMZ9MZLwVZs+6R0wM=" crossorigin="">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-mark">⚡</div>
+        <div>
+          <div class="eyebrow">YOUR DAILY EV COMPANION</div>
+          <h1>ChargeMate</h1>
+          <p class="brand-subtitle">Find it. Check it. Charge it.</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="walletBtn" class="account-btn wallet-header-btn" type="button">💳 Cards</button>
+        <button id="accountBtn" class="account-btn" type="button">Sign in</button>
+        <button id="settingsBtn" class="icon-btn" aria-label="API settings">⚙</button>
+      </div>
+    </header>
+
+    <section class="hero-panel">
+      <div class="hero-copy">
+        <span class="hero-kicker">GOOD TO GO</span>
+        <h2>Find the right charger for today.</h2>
+        <p>Check live availability, prices, station chat and directions before you arrive.</p>
+      </div>
+      <div class="hero-actions">
+        <div class="hero-badges">
+          <span>⚡ Live updates</span>
+          <span>💬 Driver chat</span>
+          <span>📍 Smart map</span>
+        </div>
+        <button id="openTripPlannerBtn" class="trip-launch-btn" type="button">🧭 Plan an EV trip</button>
+      </div>
+    </section>
+
+    <section class="search-row">
+      <button id="locateBtn" class="primary-btn">📍 Use my location</button>
+      <button id="demoModeBtn" class="demo-btn" type="button">🧪 Test demo</button>
+      <div class="station-id-search">
+        <input id="stationIdInput" type="text" placeholder="Station ID">
+        <button id="findStationBtn" class="secondary-btn" type="button">🔎 Find station</button>
+        <button id="scanQrBtn" class="secondary-btn" type="button">📷 Scan QR</button>
+      </div>
+      <select id="radiusSelect" aria-label="Search radius">
+        <option value="5">5 km</option>
+        <option value="10" selected>10 km</option>
+        <option value="20">20 km</option>
+        <option value="50">50 km</option>
+        <option value="100">100 km</option>
+      </select>
+      <button id="refreshBtn" class="secondary-btn">↻ Refresh</button>
+    </section>
+
+    <section class="filters" aria-label="Charger filters">
+      <label>
+        Minimum speed
+        <select id="powerFilter">
+          <option value="0">Any speed</option>
+          <option value="7">7+ kW</option>
+          <option value="22">22+ kW</option>
+          <option value="50">50+ kW</option>
+          <option value="100">100+ kW</option>
+          <option value="150">150+ kW</option>
+          <option value="250">250+ kW</option>
+        </select>
+      </label>
+
+      <label>
+        Connector
+        <select id="connectorFilter">
+          <option value="">All connectors</option>
+          <option value="CCS">CCS</option>
+          <option value="CHAdeMO">CHAdeMO</option>
+          <option value="Type 2">Type 2</option>
+          <option value="Tesla">Tesla</option>
+        </select>
+      </label>
+
+      <label>
+        Live occupancy
+        <select id="availabilityFilter">
+          <option value="">Any status</option>
+          <option value="Available">Available now</option>
+          <option value="Occupied">Occupied</option>
+          <option value="Reserved">Reserved</option>
+          <option value="OutOfService">Out of service</option>
+          <option value="Unknown">Unknown</option>
+        </select>
+      </label>
+
+      <label class="toggle-label">
+        <input type="checkbox" id="openNowFilter">
+        <span>Open 24/7</span>
+      </label>
+
+      <label class="toggle-label">
+        <input type="checkbox" id="auto↻ RefreshFilter">
+        <span>Live refresh every 30 seconds</span>
+      </label>
+
+      <label class="toggle-label">
+        <input type="checkbox" id="operationalFilter" checked>
+        <span>Operational only</span>
+      </label>
+    </section>
+
+    <main class="content">
+      <div id="map" aria-label="Map of EV chargers"></div>
+      <aside class="panel">
+        <div class="panel-head">
+          <div>
+            <strong id="resultCount">0 chargers</strong>
+            <div id="statusText">Tap “Use my location” to begin.</div>
+          </div>
+          <select id="sortSelect" aria-label="Sort chargers">
+            <option value="distance">Nearest</option>
+            <option value="power">Fastest</option>
+          </select>
+        </div>
+        <div id="chargerList" class="charger-list"></div>
+      </aside>
+    </main>
+  </div>
+
+  <dialog id="settingsDialog">
+    <form method="dialog" class="settings-card">
+      <h2>Data source settings</h2>
+      <p><strong>Open Charge Map</strong> supplies charger locations. <strong>TomTom EV Search</strong> can add live point availability where coverage is supplied by the charging network.</p>
+      <label>Open Charge Map API key
+        <input id="apiKeyInput" type="password" placeholder="Paste Open Charge Map key" autocomplete="off">
+      </label>
+      <label>TomTom EV API key
+        <input id="tomtomKeyInput" type="password" placeholder="Paste TomTom key for live occupancy" autocomplete="off">
+      </label>
+      <p class="settings-note">The TomTom EV Search service may require approved commercial or evaluation access. When unavailable, the app automatically falls back to Open Charge Map without occupancy information.</p>
+      <hr class="settings-divider">
+      <h3>Live community chat</h3>
+      <p class="settings-note">Paste your Firebase web-app settings to enable shared chat at every charger.</p>
+      <label>Firebase API key
+        <input id="firebaseApiKeyInput" type="password" placeholder="Firebase apiKey" autocomplete="off">
+      </label>
+      <label>Firebase database URL
+        <input id="firebaseDatabaseUrlInput" type="url" placeholder="https://your-project-default-rtdb.firebaseio.com">
+      </label>
+      <label>Firebase project ID
+        <input id="firebaseProjectIdInput" type="text" placeholder="your-project-id">
+      </label>
+      <label>Firebase auth domain
+        <input id="firebaseAuthDomainInput" type="text" placeholder="your-project-id.firebaseapp.com">
+      </label>
+      <label>Firebase app ID
+        <input id="firebaseAppIdInput" type="text" placeholder="1:123456:web:abcdef">
+      </label>
+      <hr class="settings-divider">
+      <h3>EV trip planning</h3>
+      <label>OpenRouteService API key
+        <input id="orsApiKeyInput" type="password" placeholder="Directions and route planning key">
+      </label>
+      <label>Connected-vehicle API endpoint
+        <input id="vehicleApiEndpointInput" type="url" placeholder="https://your-secure-backend.example/vehicle">
+      </label>
+      <label>Wallet checkout endpoint
+        <input id="walletCheckoutEndpointInput" type="url" placeholder="https://your-secure-backend.example/create-wallet-checkout">
+      </label>
+      <p class="settings-note">The connected-vehicle endpoint is optional. It should securely return the signed-in user's live battery percentage and remaining range. Do not put manufacturer access tokens directly in this web app.</p>
+      <div class="dialog-actions">
+        <button value="cancel" class="secondary-btn">Cancel</button>
+        <button id="saveApiKeyBtn" value="default" class="primary-btn">Save</button>
+      </div>
+      <div class="key-links">
+        <a href="https://openchargemap.org/site/develop/api" target="_blank" rel="noopener">Open Charge Map key</a>
+        <a href="https://developer.tomtom.com/" target="_blank" rel="noopener">TomTom developer account</a>
+      </div>
+    </form>
+  </dialog>
+
+
+
+
+
+
+
+  <dialog id="walletDialog" class="wallet-dialog">
+    <section class="wallet-shell">
+      <header class="wallet-header">
+        <div>
+          <div class="eyebrow">CHARGING CARD WALLET</div>
+          <h2>My charging cards</h2>
+          <p>Keep your network cards organised in one place.</p>
+        </div>
+        <button id="closeWalletBtn" class="icon-btn" type="button" aria-label="Close wallet">×</button>
+      </header>
+
+      <div class="wallet-body">
+        <div class="wallet-notice">
+          <strong>Secure storage only</strong>
+          <span>This wallet stores card references and account links. It does not clone, emulate or replace protected RFID charging cards.</span>
+        </div>
+
+        <section class="wallet-membership-card">
+          <div>
+            <span class="wallet-plan-label">CHARGEMATE CARD WALLET</span>
+            <h3>$1 wallet service fee</h3>
+            <p>One-time wallet setup fee. Charging-network fees remain separate.</p>
+          </div>
+          <button id="activateWalletBtn" class="primary-btn" type="button">Activate for $1</button>
+        </section>
+
+        <div id="walletActivationStatus" class="sync-status">Wallet activation has not been completed.</div>
+
+        <section class="add-card-panel">
+          <div class="section-title">
+            <div><span class="step-number">1</span><strong>Add a charging card</strong></div>
+          </div>
+
+          <div class="wallet-form-grid">
+            <label>Network
+              <select id="walletNetworkInput">
+                <option value="Chargefox">Chargefox</option>
+                <option value="bp pulse">bp pulse</option>
+                <option value="Evie Networks">Evie Networks</option>
+                <option value="NRMA">NRMA</option>
+                <option value="Exploren">Exploren</option>
+                <option value="Wevolt">Wevolt</option>
+                <option value="Everty">Everty</option>
+                <option value="EVX">EVX</option>
+                <option value="Tesla">Tesla</option>
+                <option value="Other">Other network</option>
+              </select>
+            </label>
+
+            <label>Card nickname
+              <input id="walletNicknameInput" type="text" maxlength="40" placeholder="Example: Main Chargefox card">
+            </label>
+
+            <label>Card or tag number
+              <input id="walletCardNumberInput" type="text" maxlength="80" placeholder="Enter the printed serial number">
+            </label>
+
+            <label>Account or network link
+              <input id="walletAccountLinkInput" type="url" placeholder="https://network-account.example">
+            </label>
+          </div>
+
+          <div class="wallet-form-actions">
+            <button id="scanWalletNfcBtn" class="secondary-btn" type="button">📡 Scan compatible NFC tag</button>
+            <button id="saveWalletCardBtn" class="primary-btn" type="button">Save card</button>
+          </div>
+
+          <p class="wallet-help">NFC scanning reads compatible NDEF tags only. Many charging RFID cards will not expose their secure credential to a browser.</p>
+        </section>
+
+        <section class="saved-cards-panel">
+          <div class="section-title">
+            <div><span class="step-number">2</span><strong>Saved cards</strong></div>
+            <span id="walletCardCount" class="route-count">0 cards</span>
+          </div>
+          <div id="walletCardsList" class="wallet-cards-list"></div>
+        </section>
+      </div>
+    </section>
+  </dialog>
+
+  <dialog id="tripDialog" class="trip-dialog">
+    <section class="trip-shell">
+      <header class="trip-header">
+        <div>
+          <div class="eyebrow">SMART EV ROUTE</div>
+          <h2>Plan your journey</h2>
+          <p>Estimate arrival charge and find fast chargers along the way.</p>
+        </div>
+        <button id="closeTripPlannerBtn" class="icon-btn" type="button" aria-label="Close trip planner">×</button>
+      </header>
+
+      <div class="trip-body">
+        <section class="vehicle-card">
+          <div class="section-title">
+            <div>
+              <span class="step-number">1</span>
+              <strong>Your vehicle</strong>
+            </div>
+            <button id="syncVehicleBtn" class="secondary-btn compact-btn" type="button">↻ Sync vehicle</button>
+          </div>
+
+          <div class="vehicle-grid">
+            <label>Vehicle name
+              <input id="vehicleNameInput" type="text" placeholder="Example: BYD Sealion 7">
+            </label>
+            <label>Battery capacity
+              <div class="input-unit"><input id="batteryCapacityInput" type="number" min="10" max="250" step="0.1" value="82.5"><span>kWh</span></div>
+            </label>
+            <label>Current charge
+              <div class="input-unit"><input id="currentChargeInput" type="number" min="1" max="100" step="1" value="80"><span>%</span></div>
+            </label>
+            <label>Efficiency
+              <div class="input-unit"><input id="efficiencyInput" type="number" min="8" max="60" step="0.1" value="20"><span>kWh/100km</span></div>
+            </label>
+            <label>Safety reserve
+              <div class="input-unit"><input id="reserveInput" type="number" min="0" max="50" step="1" value="15"><span>%</span></div>
+            </label>
+            <label>Minimum fast charger
+              <select id="tripFastPowerInput">
+                <option value="50">50+ kW</option>
+                <option value="100">100+ kW</option>
+                <option value="150" selected>150+ kW</option>
+                <option value="250">250+ kW</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="vehicleSyncStatus" class="sync-status">Universal manual mode works with any EV.</div>
+        </section>
+
+        <section class="destination-card">
+          <div class="section-title">
+            <div><span class="step-number">2</span><strong>Destination</strong></div>
+          </div>
+          <div class="destination-search">
+            <input id="destinationInput" type="text" placeholder="Enter an address, suburb or destination">
+            <button id="planTripBtn" class="primary-btn" type="button">Plan route</button>
+          </div>
+          <div class="destination-shortcuts">
+            <button id="useMapCentreBtn" class="secondary-btn compact-btn" type="button">Use map centre</button>
+            <button id="clearTripBtn" class="secondary-btn compact-btn" type="button">Clear route</button>
+          </div>
+        </section>
+
+        <section id="tripResults" class="trip-results hidden">
+          <div id="tripSafetyBanner" class="trip-safety-banner"></div>
+
+          <div class="trip-metrics">
+            <div class="metric-card">
+              <span>Distance</span>
+              <strong id="tripDistanceValue">—</strong>
+            </div>
+            <div class="metric-card">
+              <span>Drive time</span>
+              <strong id="tripDurationValue">—</strong>
+            </div>
+            <div class="metric-card">
+              <span>Charge on arrival</span>
+              <strong id="arrivalChargeValue">—</strong>
+            </div>
+            <div class="metric-card">
+              <span>Range remaining</span>
+              <strong id="arrivalRangeValue">—</strong>
+            </div>
+          </div>
+
+          <div class="energy-breakdown">
+            <div><span>Starting range</span><strong id="startingRangeValue">—</strong></div>
+            <div><span>Estimated energy used</span><strong id="energyUsedValue">—</strong></div>
+            <div><span>Reserve target</span><strong id="reserveValue">—</strong></div>
+          </div>
+
+          <section class="route-chargers-section">
+            <div class="section-title">
+              <div><span class="step-number">3</span><strong>Fast chargers on your route</strong></div>
+              <span id="routeChargerCount" class="route-count">0 found</span>
+            </div>
+            <div id="routeChargersList" class="route-chargers-list"></div>
+          </section>
+
+          <div class="trip-result-actions">
+            <a id="startNavigationBtn" class="primary-btn" target="_blank" rel="noopener">Start navigation</a>
+            <button id="fitRouteBtn" class="secondary-btn" type="button">Show full route</button>
+          </div>
+        </section>
+
+        <div id="tripPlannerStatus" class="trip-planner-status">Enter your vehicle details and destination.</div>
+      </div>
+    </section>
+  </dialog>
+
+  <dialog id="priceDialog" class="price-dialog">
+    <section class="price-shell">
+      <header class="chat-header">
+        <div>
+          <div class="eyebrow">CHARGING PRICE</div>
+          <h2 id="priceStationName">Station pricing</h2>
+        </div>
+        <button id="closePriceBtn" class="icon-btn" type="button" aria-label="Close price details">×</button>
+      </header>
+
+      <div id="priceStationMeta" class="price-meta"></div>
+
+      <div class="price-content">
+        <div id="priceSummary" class="price-summary"></div>
+        <div id="priceBreakdown" class="price-breakdown"></div>
+
+        <div class="price-warning">
+          Prices may depend on membership, roaming provider, time of day, idle fees or parking charges.
+          Confirm the final tariff in the charging-network app before starting a session.
+        </div>
+
+        <div class="price-actions">
+          <button id="priceShowMapBtn" class="secondary-btn" type="button">Show on map</button>
+          <button id="priceOpenChatBtn" class="secondary-btn" type="button">Open live chat</button>
+          <a id="priceNavigateBtn" class="primary-btn" target="_blank" rel="noopener">Navigate</a>
+        </div>
+      </div>
+    </section>
+  </dialog>
+
+  <dialog id="qrDialog" class="qr-dialog">
+    <section class="qr-shell">
+      <header class="chat-header">
+        <div>
+          <div class="eyebrow">QR SCANNER</div>
+          <h2>Scan charger QR code</h2>
+        </div>
+        <button id="closeQrBtn" class="icon-btn" type="button" aria-label="Close scanner">×</button>
+      </header>
+      <div id="qrStatus" class="chat-status">Point your camera at a charger QR code.</div>
+      <div id="qr-reader"></div>
+      <div class="qr-manual">
+        <input id="qrManualInput" type="text" placeholder="Paste QR text, station ID or app link">
+        <button id="useQrTextBtn" class="primary-btn" type="button">Open charger</button>
+      </div>
+      <p class="chat-note">Supported QR contents: a station ID, a URL containing <code>?station=ID</code>, or text beginning with <code>EVCHARGER:</code>.</p>
+    </section>
+  </dialog>
+
+  <dialog id="authDialog" class="auth-dialog">
+    <section class="auth-shell">
+      <header class="chat-header">
+        <div>
+          <div class="eyebrow">YOUR ACCOUNT</div>
+          <h2>Sign in or register</h2>
+        </div>
+        <button id="closeAuthBtn" class="icon-btn" type="button" aria-label="Close">×</button>
+      </header>
+
+      <div id="authStatus" class="chat-status">Choose a sign-in method.</div>
+
+      <div class="auth-body">
+        <button id="googleSignInBtn" class="google-btn" type="button">
+          <span class="google-g">G</span>
+          Continue with Google
+        </button>
+
+        <div class="auth-separator"><span>or</span></div>
+
+        <section class="auth-section">
+          <h3>Email and password</h3>
+          <input id="authEmailInput" type="email" placeholder="Email address" autocomplete="email">
+          <input id="authPasswordInput" type="password" placeholder="Password — minimum 6 characters" autocomplete="current-password">
+          <div class="auth-grid">
+            <button id="emailLoginBtn" class="primary-btn" type="button">Sign in</button>
+            <button id="emailRegisterBtn" class="secondary-btn" type="button">Register</button>
+          </div>
+          <button id="forgotPasswordBtn" class="text-btn" type="button">Forgot password?</button>
+        </section>
+
+        <div class="auth-separator"><span>or</span></div>
+
+        <section class="auth-section">
+          <h3>Phone number</h3>
+          <input id="phoneNumberInput" type="tel" placeholder="+61 4XX XXX XXX" autocomplete="tel">
+          <div id="recaptcha-container"></div>
+          <button id="sendCodeBtn" class="secondary-btn" type="button">Send SMS code</button>
+
+          <div id="smsCodeArea" class="sms-code-area hidden">
+            <input id="smsCodeInput" inputmode="numeric" maxlength="6" placeholder="6-digit SMS code">
+            <button id="verifyCodeBtn" class="primary-btn" type="button">Verify and sign in</button>
+          </div>
+        </section>
+
+        <section id="signedInPanel" class="signed-in-panel hidden">
+          <div class="signed-user">
+            <div id="userAvatar" class="user-avatar">U</div>
+            <div>
+              <strong id="signedInName">Signed in</strong>
+              <div id="signedInDetail"></div>
+            </div>
+          </div>
+          <button id="signOutBtn" class="secondary-btn" type="button">Sign out</button>
+        </section>
+      </div>
+
+      <p class="chat-note">Phone sign-in requires Firebase Authentication and an authorised domain. Standard SMS charges and Firebase quotas may apply.</p>
+    </section>
+  </dialog>
+
+  <dialog id="chatDialog" class="chat-dialog">
+    <section class="chat-shell">
+      <header class="chat-header">
+        <div>
+          <div class="eyebrow">CHARGER COMMUNITY</div>
+          <h2 id="chatStationName">Live chat</h2>
+        </div>
+        <button id="closeChatBtn" class="icon-btn" type="button" aria-label="Close chat">×</button>
+      </header>
+      <div id="chatConnectionStatus" class="chat-status">Chat is not configured.</div>
+      <div id="chatMessages" class="chat-messages"></div>
+      <form id="chatForm" class="chat-compose">
+        <input id="chatNameInput" maxlength="80" placeholder="Signed-in account" readonly>
+        <select id="finishTimeSelect" aria-label="Estimated finish time">
+          <option value="">No finish estimate</option>
+          <option value="5">Leaving in about 5 min</option>
+          <option value="10">Leaving in about 10 min</option>
+          <option value="15">Leaving in about 15 min</option>
+          <option value="20">Leaving in about 20 min</option>
+          <option value="30">Leaving in about 30 min</option>
+          <option value="45">Leaving in about 45 min</option>
+          <option value="60">Leaving in about 1 hour</option>
+        </select>
+        <textarea id="chatMessageInput" maxlength="240" placeholder="Message other drivers…" required></textarea>
+        <button class="primary-btn" type="submit">Send message</button>
+      </form>
+      <p class="chat-note">Do not share phone numbers, addresses or other private information. Messages automatically expire after 24 hours when cleanup rules are configured.</p>
+    </section>
+  </dialog>
+
+  <template id="chargerCardTemplate">
+    <article class="charger-card">
+      <div class="card-top">
+        <div>
+          <h3 class="charger-name"></h3>
+          <p class="charger-address"></p>
+        </div>
+        <span class="distance-badge"></span>
+      </div>
+      <div class="chips"></div>
+      <div class="card-actions">
+        <button class="map-btn secondary-btn">Show on map</button>
+        <button class="chat-btn secondary-btn">Live chat</button>
+        <button class="price-btn secondary-btn">Price</button>
+        <a class="navigate-btn primary-btn" target="_blank" rel="noopener">Navigate</a>
+      </div>
+    </article>
+  </template>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="app.js"></script>
+<script>window.addEventListener("load",()=>setTimeout(()=>loadDemoMode(),1200));</script></body>
+</html>

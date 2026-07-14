@@ -1,0 +1,9 @@
+{
+  "name": "EV Charger Finder Live",
+  "short_name": "EV Chargers Live",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
+  "description": "Find EV chargers and view live occupancy where available."
+}
