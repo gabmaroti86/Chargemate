@@ -8,8 +8,7 @@
   <title>ChargeFinder</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIINfQ3ynqz9SgMZbMZ7B8A+gZ6jGZ4gBq0=" crossorigin="">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -64,7 +63,7 @@
           </div>
           <button id="fullscreenButton" class="secondary-button">Full screen</button>
         </div>
-        <div id="map" role="application" aria-label="EV charger map"></div>
+        <div id="map" role="application" aria-label="EV charger map"><div id="mapLoading">Loading map…</div></div>
       </section>
 
       <section class="nearby-section">
@@ -136,8 +135,7 @@
 
   <div id="toast" role="status" aria-live="polite"></div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

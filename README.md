@@ -1,6 +1,6 @@
 # ChargeFinder
 
-A GitHub-ready progressive web app for finding nearby EV charging stations.
+A GitHub-ready progressive web app for finding nearby EV charging stations. This revision includes faster map rendering, request cancellation, multiple charger-data fallbacks and cache fixes.
 
 ## What works now
 

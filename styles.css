@@ -90,3 +90,22 @@ dialog textarea { width: 100%; margin: 8px 0 16px; resize: vertical; }
   .stat-card:last-child { grid-column: 1 / -1; }
   .charger-card { grid-template-columns: 1fr; }
 }
+
+#map { position: relative; }
+#mapLoading {
+  position: absolute;
+  z-index: 700;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 11px 15px;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-weight: 750;
+  pointer-events: none;
+  transition: opacity .2s ease;
+}
+#mapLoading.hidden { opacity: 0; }

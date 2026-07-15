@@ -6,7 +6,9 @@ const state = {
   stations: [],
   radius: 15000,
   theme: localStorage.getItem("chargefinder-theme") || "system",
-  saved: new Set(JSON.parse(localStorage.getItem("chargefinder-saved") || "[]"))
+  saved: new Set(JSON.parse(localStorage.getItem("chargefinder-saved") || "[]")),
+  requestController: null,
+  requestToken: 0
 };
 
 const els = {
@@ -25,7 +27,8 @@ const els = {
   detailsContent: document.querySelector("#detailsContent"),
   feedbackDialog: document.querySelector("#feedbackDialog"),
   feedbackText: document.querySelector("#feedbackText"),
-  toast: document.querySelector("#toast")
+  toast: document.querySelector("#toast"),
+  mapLoading: document.querySelector("#mapLoading")
 };
 
 function showToast(message) {
@@ -45,12 +48,33 @@ applyTheme();
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
 
 function initMap() {
-  state.map = L.map("map", { zoomControl: true }).setView([-37.8136, 144.9631], 11);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  state.map = L.map("map", {
+    zoomControl: true,
+    preferCanvas: true,
+    fadeAnimation: false,
+    markerZoomAnimation: false
+  }).setView([-37.8136, 144.9631], 11);
+
+  const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
+    updateWhenIdle: true,
+    updateWhenZooming: false,
+    keepBuffer: 3,
     attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(state.map);
+  });
+
+  tiles.on("load", () => els.mapLoading?.classList.add("hidden"));
+  tiles.on("tileerror", () => {
+    if (els.mapLoading) els.mapLoading.textContent = "Map tiles are slow — retrying…";
+  });
+
+  tiles.addTo(state.map);
   state.markerLayer = L.layerGroup().addTo(state.map);
+
+  setTimeout(() => {
+    state.map.invalidateSize();
+    els.mapLoading?.classList.add("hidden");
+  }, 500);
 }
 
 function getPosition() {
@@ -63,8 +87,8 @@ function getPosition() {
     async ({ coords }) => {
       state.position = { lat: coords.latitude, lon: coords.longitude };
       updateUserMarker();
-      await reverseGeocode();
-      await loadStations();
+      reverseGeocode();
+      loadStations();
     },
     err => {
       els.locationLabel.textContent = "Location permission needed";
@@ -101,35 +125,64 @@ async function reverseGeocode() {
 }
 
 function overpassQuery(lat, lon, radius) {
-  return `[out:json][timeout:25];
+  return `[out:json][timeout:14];
   (
     node["amenity"="charging_station"](around:${radius},${lat},${lon});
     way["amenity"="charging_station"](around:${radius},${lat},${lon});
-    relation["amenity"="charging_station"](around:${radius},${lat},${lon});
   );
-  out center tags;`;
+  out center tags qt;`;
 }
 
 async function loadStations() {
   if (!state.position) return;
-  renderEmpty("Loading live charging-station data…");
+
+  const token = ++state.requestToken;
+  if (state.requestController) state.requestController.abort();
+  state.requestController = new AbortController();
+
+  renderEmpty("Loading nearby charging stations…");
   const {lat, lon} = state.position;
-  try {
-    const response = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-      body: new URLSearchParams({ data: overpassQuery(lat, lon, state.radius) })
-    });
-    if (!response.ok) throw new Error(`Station service returned ${response.status}`);
-    const data = await response.json();
-    state.stations = data.elements.map(normalizeStation).filter(Boolean)
-      .sort((a,b) => a.distanceKm - b.distanceKm);
-    renderStations();
-  } catch (error) {
-    console.error(error);
-    renderEmpty("The live station service is temporarily unavailable. Try again shortly.");
-    showToast("Could not load live charger data.");
+  const body = new URLSearchParams({ data: overpassQuery(lat, lon, state.radius) });
+  const endpoints = [
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter"
+  ];
+
+  let lastError;
+  for (const endpoint of endpoints) {
+    try {
+      const timeout = setTimeout(() => state.requestController.abort(), 12000);
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body,
+        signal: state.requestController.signal
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) throw new Error(`Station service returned ${response.status}`);
+      const data = await response.json();
+      if (token !== state.requestToken) return;
+
+      state.stations = data.elements
+        .map(normalizeStation)
+        .filter(Boolean)
+        .sort((a,b) => a.distanceKm - b.distanceKm);
+
+      renderStations();
+      return;
+    } catch (error) {
+      lastError = error;
+      if (error.name === "AbortError" && token !== state.requestToken) return;
+      state.requestController = new AbortController();
+    }
   }
+
+  console.error(lastError);
+  if (token !== state.requestToken) return;
+  renderEmpty("The live charger service is busy. Tap Use my location to retry.");
+  showToast("Charger data is taking too long. Please retry.");
 }
 
 function normalizeStation(element) {
@@ -187,14 +240,13 @@ function renderStations() {
     return;
   }
 
-  els.chargerList.innerHTML = state.stations.map(stationCard).join("");
-  for (const station of state.stations) {
+  els.chargerList.innerHTML = state.stations.slice(0, 100).map(stationCard).join("");
+  for (const station of state.stations.slice(0, 120)) {
     const marker = L.marker([station.lat, station.lon]).addTo(state.markerLayer);
     marker.bindPopup(`<strong>${escapeHtml(station.name)}</strong><br>${station.distanceKm.toFixed(1)} km away`);
     marker.on("click", () => openDetails(station.id));
   }
-  const group = L.featureGroup([state.userMarker, ...state.markerLayer.getLayers()].filter(Boolean));
-  if (group.getLayers().length) state.map.fitBounds(group.getBounds().pad(.15), { maxZoom: 15 });
+  if (state.position) state.map.setView([state.position.lat, state.position.lon], state.radius <= 5000 ? 14 : state.radius <= 15000 ? 12 : 10, { animate: false });
 }
 
 function stationCard(s) {
