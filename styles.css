@@ -109,3 +109,106 @@ dialog textarea { width: 100%; margin: 8px 0 16px; resize: vertical; }
   transition: opacity .2s ease;
 }
 #mapLoading.hidden { opacity: 0; }
+
+
+/* Critical Leaflet layout rules bundled locally.
+   These prevent map tiles appearing as separated blocks if the external
+   Leaflet stylesheet loads slowly or incompletely on a phone. */
+.leaflet-container {
+  overflow: hidden;
+  position: relative;
+  outline-offset: 1px;
+  width: 100%;
+}
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container,
+.leaflet-pane > svg,
+.leaflet-pane > canvas,
+.leaflet-zoom-box,
+.leaflet-image-layer,
+.leaflet-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.leaflet-container img.leaflet-tile {
+  max-width: none !important;
+  max-height: none !important;
+  width: 256px !important;
+  height: 256px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+.leaflet-container .leaflet-overlay-pane svg {
+  max-width: none !important;
+  max-height: none !important;
+}
+.leaflet-tile {
+  filter: inherit;
+  visibility: hidden;
+}
+.leaflet-tile-loaded {
+  visibility: inherit;
+}
+.leaflet-zoom-animated {
+  transform-origin: 0 0;
+}
+.leaflet-zoom-hide {
+  visibility: hidden;
+}
+.leaflet-container a {
+  -webkit-tap-highlight-color: rgba(51,181,229,.4);
+}
+.leaflet-control {
+  position: relative;
+  z-index: 800;
+  pointer-events: auto;
+}
+.leaflet-top,
+.leaflet-bottom {
+  position: absolute;
+  z-index: 1000;
+  pointer-events: none;
+}
+.leaflet-top { top: 0; }
+.leaflet-right { right: 0; }
+.leaflet-bottom { bottom: 0; }
+.leaflet-left { left: 0; }
+.leaflet-control-zoom {
+  margin: 12px !important;
+}
+.leaflet-control-zoom a {
+  display: block;
+  width: 34px;
+  height: 34px;
+  line-height: 34px;
+  text-align: center;
+  text-decoration: none;
+  background: var(--panel);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.leaflet-control-zoom a:first-child {
+  border-radius: 10px 10px 0 0;
+}
+.leaflet-control-zoom a:last-child {
+  border-radius: 0 0 10px 10px;
+  border-bottom: 0;
+}
+.leaflet-control-attribution {
+  padding: 2px 6px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  color: var(--muted);
+  font-size: 10px;
+}
+.leaflet-control-attribution a {
+  color: var(--accent);
+}
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  display: block;
+}

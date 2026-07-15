@@ -1,4 +1,4 @@
-const CACHE = "chargefinder-v2";
+const CACHE = "chargefinder-v3-map-display";
 const APP_SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest", "./icons/icon.svg"];
 
 self.addEventListener("install", event => {

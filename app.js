@@ -363,3 +363,19 @@ document.querySelector("#sendFeedbackButton").addEventListener("click", () => {
 if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
 initMap();
 getPosition();
+
+
+function refreshMapLayout() {
+  if (!state.map) return;
+  requestAnimationFrame(() => {
+    state.map.invalidateSize({ animate: false, pan: false });
+    setTimeout(() => state.map.invalidateSize({ animate: false, pan: false }), 250);
+  });
+}
+
+window.addEventListener("resize", refreshMapLayout);
+window.addEventListener("orientationchange", () => setTimeout(refreshMapLayout, 350));
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) refreshMapLayout();
+});
+window.addEventListener("pageshow", refreshMapLayout);
