@@ -1,17 +1,26 @@
 {
-  "name": "ChargeMate EV Charger Finder",
-  "short_name": "ChargeMate",
+  "name": "ChargeFinder",
+  "short_name": "ChargeFinder",
+  "description": "Find nearby electric vehicle charging stations.",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#07111f",
   "theme_color": "#07111f",
-  "description": "Find nearby EV chargers and estimate trips.",
+  "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "assets/icon.svg",
+      "src": "icons/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Find nearby chargers",
+      "short_name": "Nearby",
+      "url": "./"
     }
   ]
 }

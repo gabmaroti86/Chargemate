@@ -4,87 +4,140 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#07111f">
-  <meta name="description" content="ChargeMate EV charger finder and trip planner">
-  <title>ChargeMate</title>
+  <meta name="description" content="Find nearby EV charging stations using live OpenStreetMap data.">
+  <title>ChargeFinder</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-  <link rel="preconnect" href="https://unpkg.com">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIINfQ3ynqz9SgMZbMZ7B8A+gZ6jGZ4gBq0=" crossorigin="">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="brand-mark">⚡</div>
-      <div><h1>ChargeMate</h1><p>Find it. Check it. Charge it.</p></div>
-    </div>
-    <button id="settingsBtn" class="icon-btn" aria-label="Settings">⚙</button>
-  </header>
-
-  <main class="page">
-    <section class="hero card">
-      <div>
-        <span class="eyebrow">YOUR DAILY EV COMPANION</span>
-        <h2>Find the right charger for today.</h2>
-        <p>Search nearby charging stations, filter by power and plan an EV trip.</p>
-      </div>
-      <button id="locateBtn" class="primary-btn">📍 Use my location</button>
-    </section>
-
-    <section class="controls card">
-      <input id="searchInput" type="search" placeholder="Search suburb, address or station">
-      <select id="powerFilter" aria-label="Minimum charger power">
-        <option value="0">Any speed</option>
-        <option value="50">50+ kW</option>
-        <option value="100">100+ kW</option>
-        <option value="150">150+ kW</option>
-      </select>
-      <button id="demoBtn" class="secondary-btn">Demo chargers</button>
-      <button id="tripBtn" class="secondary-btn">🧭 Plan trip</button>
-    </section>
-
-    <section class="dashboard">
-      <div id="map" class="map card" aria-label="EV charger map"></div>
-      <aside class="side card">
-        <div class="summary">
-          <div><strong id="totalCount">0</strong><span>Total</span></div>
-          <div><strong id="availableCount">0</strong><span>Available</span></div>
-          <div><strong id="fastCount">0</strong><span>150+ kW</span></div>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">⚡</div>
+        <div>
+          <h1>ChargeFinder</h1>
+          <p id="locationLabel">Locating you…</p>
         </div>
-        <div id="status" class="status">Use your location or load demo chargers.</div>
-        <div id="chargerList" class="charger-list"></div>
-      </aside>
-    </section>
-  </main>
+      </div>
+      <div class="top-actions">
+        <button id="themeButton" class="icon-button" aria-label="Change theme" title="Change theme">◐</button>
+        <button id="settingsButton" class="icon-button" aria-label="Open settings" title="Settings">⚙</button>
+      </div>
+    </header>
 
-  <dialog id="tripDialog">
-    <form method="dialog" class="dialog-card">
-      <div class="dialog-head">
-        <div><span class="eyebrow">SMART EV ROUTE</span><h2>Trip planner</h2></div>
-        <button value="cancel" class="icon-btn" aria-label="Close">×</button>
-      </div>
-      <label>Destination<input id="destinationInput" placeholder="Example: Ballarat VIC"></label>
-      <div class="grid-2">
-        <label>Battery now (%)<input id="batteryInput" type="number" min="1" max="100" value="80"></label>
-        <label>Estimated range (km)<input id="rangeInput" type="number" min="20" value="380"></label>
-      </div>
-      <button id="estimateBtn" type="button" class="primary-btn">Estimate trip</button>
-      <div id="tripResult" class="trip-result">Enter a destination to estimate your trip.</div>
-    </form>
+    <main>
+      <section class="hero-card">
+        <div>
+          <p class="eyebrow">Nearby charging</p>
+          <h2>Find a charger without the guesswork.</h2>
+          <p class="hero-copy">Live station locations are loaded from OpenStreetMap. Availability is shown only when a provider supplies it.</p>
+        </div>
+        <button id="locateButton" class="primary-button">Use my location</button>
+      </section>
+
+      <section class="stats-grid" aria-label="Nearby charger statistics">
+        <article class="stat-card">
+          <span class="stat-label">Stations nearby</span>
+          <strong id="stationCount">—</strong>
+          <span id="stationRadius" class="stat-note">Within 15 km</span>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Connectors listed</span>
+          <strong id="connectorCount">—</strong>
+          <span class="stat-note">Based on mapped capacity</span>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Currently in use</span>
+          <strong id="inUseCount">—</strong>
+          <span id="availabilityNote" class="stat-note">Provider status unavailable</span>
+        </article>
+      </section>
+
+      <section class="map-card">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Map</p>
+            <h2>Chargers around you</h2>
+          </div>
+          <button id="fullscreenButton" class="secondary-button">Full screen</button>
+        </div>
+        <div id="map" role="application" aria-label="EV charger map"></div>
+      </section>
+
+      <section class="nearby-section">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Nearest first</p>
+            <h2>Nearby chargers</h2>
+          </div>
+          <select id="radiusSelect" aria-label="Search radius">
+            <option value="5000">5 km</option>
+            <option value="15000" selected>15 km</option>
+            <option value="30000">30 km</option>
+            <option value="50000">50 km</option>
+          </select>
+        </div>
+        <div id="chargerList" class="charger-list">
+          <div class="empty-state">Searching for charging stations…</div>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Main navigation">
+      <button class="nav-item active" data-view="map"><span>⌖</span>Map</button>
+      <button class="nav-item" data-view="drive"><span>▰</span>Drive mode</button>
+      <button class="nav-item" data-view="saved"><span>♡</span>Saved</button>
+      <button class="nav-item" data-view="feedback"><span>✎</span>Feedback</button>
+    </nav>
+  </div>
+
+  <dialog id="detailsDialog">
+    <button class="dialog-close" data-close-dialog aria-label="Close">×</button>
+    <div id="detailsContent"></div>
   </dialog>
 
   <dialog id="settingsDialog">
-    <form method="dialog" class="dialog-card">
-      <div class="dialog-head"><h2>API settings</h2><button value="cancel" class="icon-btn">×</button></div>
-      <label>Open Charge Map API key
-        <input id="apiKeyInput" type="password" placeholder="Optional API key">
-      </label>
-      <p class="muted">The demo works without a key. Live charger lookup uses Open Charge Map.</p>
-      <button id="saveSettingsBtn" value="default" class="primary-btn">Save</button>
-    </form>
+    <button class="dialog-close" data-close-dialog aria-label="Close">×</button>
+    <h2>Settings</h2>
+    <label class="setting-row">
+      <span>
+        <strong>Theme</strong>
+        <small>Follow your device or choose manually</small>
+      </span>
+      <select id="themeSelect">
+        <option value="system">System</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+      </select>
+    </label>
+    <label class="setting-row">
+      <span>
+        <strong>Driving theme</strong>
+        <small>Use a high-contrast layout in drive mode</small>
+      </span>
+      <input id="driveThemeToggle" type="checkbox" checked>
+    </label>
+    <p class="legal-note">Automatic vehicle connection, Apple CarPlay, Android Auto, live occupancy and Plug & Charge require native vehicle and charging-network integrations. This web app does not claim those capabilities without connected provider services.</p>
   </dialog>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <dialog id="feedbackDialog">
+    <button class="dialog-close" data-close-dialog aria-label="Close">×</button>
+    <h2>Beta feedback</h2>
+    <p>Describe a problem or feature request. Your message opens in your email app so you stay in control of what is sent.</p>
+    <label>
+      Feedback
+      <textarea id="feedbackText" rows="7" placeholder="Tell us what happened…"></textarea>
+    </label>
+    <button id="sendFeedbackButton" class="primary-button">Open email</button>
+  </dialog>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="app.js"></script>
 </body>
 </html>
